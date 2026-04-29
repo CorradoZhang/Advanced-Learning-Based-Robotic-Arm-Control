@@ -1,0 +1,32 @@
+{
+  "env_name": "PandaCubeGraspIK-v0",
+  "control_space": "ik",
+  "started_at": "2026-04-29 17:16:25",
+  "finished_at": "2026-04-29 17:16:25",
+  "config": {
+    "env": "ik",
+    "total_timesteps": 20,
+    "max_ep_len": 10,
+    "frame_skip": 5,
+    "cube_xy_jitter": 0.01,
+    "print_freq": 10,
+    "log_freq": 10,
+    "save_freq": 10,
+    "eval_freq": 10,
+    "eval_episodes": 1,
+    "update_timestep": 10,
+    "k_epochs": 40,
+    "eps_clip": 0.2,
+    "gamma": 0.99,
+    "lr_actor": 0.0001,
+    "lr_critic": 0.0003,
+    "action_std": 0.35,
+    "action_std_decay_rate": 0.02,
+    "min_action_std": 0.1,
+    "action_std_decay_freq": 50000,
+    "seed": 0
+  },
+  "last_checkpoint": "/Users/yuzhang/Desktop/Open_Source_Contribution/Advanced Learning-Based Robotic Arm Control/PPO-PyTorch/PPO_preTrained/PandaCubeGraspIK-v0/PPO_PandaCubeGraspIK-v0_0_6.pth",
+  "best_checkpoint": "/Users/yuzhang/Desktop/Open_Source_Contribution/Advanced Learning-Based Robotic Arm Control/PPO-PyTorch/PPO_preTrained/PandaCubeGraspIK-v0/PPO_PandaCubeGraspIK-v0_0_6_best.pth",
+  "best_eval_reward": 3.7163454158576457
+}
