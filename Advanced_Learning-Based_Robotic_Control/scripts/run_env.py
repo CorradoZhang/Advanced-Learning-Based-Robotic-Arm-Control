@@ -79,14 +79,13 @@ def run(
             else:
                 action = env.action_space.sample()
 
-            _, reward, terminated, truncated, info = env.step(action)
+            _, _, terminated, truncated, info = env.step(action)
 
             if terminated or truncated:
                 status = "success" if terminated else "truncated"
                 print(
                     status,
                     f"time={env.time:.2f}",
-                    f"reward={reward:.3f}",
                     f"cube_height={info['cube_height']:.3f}",
                 )
                 env.reset()

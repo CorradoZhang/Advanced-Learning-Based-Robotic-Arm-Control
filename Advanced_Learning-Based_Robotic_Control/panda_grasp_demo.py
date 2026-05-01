@@ -99,7 +99,6 @@ def main() -> None:
         print("Default mode is circle, so the arm should move visibly. Use --mode static to only inspect the scene.")
 
         step = 0
-        reward = 0.0
         next_status = time.monotonic()
         dt = 1.0 / args.rate
 
@@ -113,7 +112,7 @@ def main() -> None:
             else:
                 action = pose_action(np.zeros(3, dtype=np.float64))
 
-            _, reward, _, _, info = env.step(action)
+            _, _, _, _, info = env.step(action)
             step += 1
 
             now = time.monotonic()
@@ -123,7 +122,6 @@ def main() -> None:
                     f"hand={np.round(info['hand_position'], 4)}",
                     f"cube={np.round(info['cube_position'], 4)}",
                     f"dist={info['distance_to_cube']:.3f}",
-                    f"reward={reward:.3f}",
                 )
                 next_status = now + args.status_every
 

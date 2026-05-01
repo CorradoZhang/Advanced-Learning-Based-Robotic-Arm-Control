@@ -7,12 +7,12 @@ from copy import deepcopy
 import numpy as np
 
 
-def print_status(info: dict, reward: float) -> None:
+def print_status(info: dict) -> None:
     cube = np.round(info["cube_position"], 3)
     hand = np.round(info["hand_position"], 3)
     dist = info["distance_to_cube"]
     grip = info["gripper_opening"]
-    print(f"hand={hand} cube={cube} dist={dist:.3f} grip={grip:.3f} reward={reward:.3f}")
+    print(f"hand={hand} cube={cube} dist={dist:.3f} grip={grip:.3f}")
 
 
 def build_env(control_freq: int):
@@ -102,7 +102,6 @@ def main() -> None:
 
         dt = 1.0 / args.rate
         next_status_time = time.monotonic()
-        reward = 0.0
         step_count = 0
 
         while env.is_running():
@@ -130,12 +129,12 @@ def main() -> None:
                 continue
 
             flat_action = create_flat_action(rs_env, device, input_action_dict, prev_gripper_actions)
-            _, reward, _, _, info = env.step(flat_action)
+            _, _, _, _, info = env.step(flat_action)
             step_count += 1
 
             now = time.monotonic()
             if now >= next_status_time:
-                print_status(info, reward)
+                print_status(info)
                 next_status_time = now + args.status_every
 
             sleep_time = dt - (time.monotonic() - loop_start)
