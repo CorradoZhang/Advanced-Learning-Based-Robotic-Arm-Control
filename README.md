@@ -16,6 +16,13 @@ deployment. RL and VLA are planned directions and have no implementation yet.
 [中文使用指南](docs/README.zh-CN.md) · [IL / Flow Matching tutorial](docs/il/flow_matching.md) ·
 [Hardware setup](docs/hardware.md) · [Data and training](docs/training.md)
 
+## Video demonstrations
+
+- [Demo — 10 seconds](Videos/demo.mp4)
+- [Flow Matching — 25 seconds](Videos/Flow_matching.mp4)
+
+Open either video to play it on GitHub.
+
 ## Project scope
 
 The project connects the main stages of robotic learning research:
