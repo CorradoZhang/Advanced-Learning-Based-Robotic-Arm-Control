@@ -1,46 +1,45 @@
-# Third-Party Notices
+# Third-party notices
 
-This project includes third-party files and derived assets.
+## ReinFlow
 
-## MuJoCo Menagerie: Franka Emika Panda
+- Source: https://github.com/ReinFlow/ReinFlow
+- Reference revision: `e722e151bed767f3ffef47527cf697f2358af55d`
+- Paper: https://arxiv.org/abs/2505.22094
+- License: MIT; retained in `algorithm/flow_matching/LICENSE-ReinFlow` and source headers.
+- Included/adapted components: `model.py`, `network.py`, `vit.py`, `mlp.py`,
+  `modules.py`, `embedding.py`, `dataset.py`, `scheduler.py` under `algorithm/flow_matching/`.
+- Local adaptations: package-relative imports, compact model reconstruction,
+  episode-bounded NPZ loading, batched intermediate sample storage, CPU-compatible
+  attention backend selection, and the offline trainer/CLI integration.
 
-Included path:
-- `mujoco_menagerie/franka_emika_panda/`
+This project uses the imitation-learning/pretraining part of the method. It does
+not claim to reproduce the paper's online-RL experiments or benchmark results.
 
-Primary upstream source:
-- Repository: `google-deepmind/mujoco_menagerie`
-- URL: `https://github.com/google-deepmind/mujoco_menagerie`
-- Model directory: `https://github.com/google-deepmind/mujoco_menagerie/tree/main/franka_emika_panda`
+## Upstream helpers acknowledged by ReinFlow
 
-License:
-- Apache License 2.0
-- The upstream license text is retained at:
-  `mujoco_menagerie/franka_emika_panda/LICENSE`
+Original notices are retained in individual files:
 
-Upstream provenance noted by the model authors:
-- The `franka_emika_panda` model README states that this MJCF model is derived from the publicly available URDF description in `frankarobotics/franka_ros` / `franka_description`.
-- `franka_ros`: `https://github.com/frankarobotics/franka_ros`
-- `franka_description`: `https://github.com/frankarobotics/franka_description`
+- ViT/spatial image modules: IBRL / Intelligent Robot Motion Lab,
+  https://github.com/hengyuan-hu/ibrl
+- Residual MLP: D3IL / ALRhub,
+  https://github.com/ALRhub/d3il
+- Cosine warmup/restart scheduler: Naoki Katsura,
+  https://github.com/katsura-jp/pytorch-cosine-annealing-with-warmup
+- Sequence-window design: ReinFlow's loader, whose upstream references include
+  https://github.com/jannerm/diffuser
 
-Local modifications in this repository:
-- Added `mujoco_menagerie/franka_emika_panda/grasp_scene.xml`
-- Added a MuJoCo grasp demo script in `test.py`
-- Adjusted table, cube, and camera settings for the local grasp experiment
+## LeRobot and Hiwonder
 
-## Suggested Citation
+- LeRobot: https://github.com/huggingface/lerobot
+- Hiwonder fork: https://github.com/Hiwonder/hiwonder-SoArm-101
+- Tested fork revision: `a24998f7ba3c77ea445b48c92ad15c14a50e492a`
+- External dependency license: Apache-2.0; consult the installed distribution.
+- The LeRobot/Hiwonder SDK source tree is not redistributed here.
 
-If you use the MuJoCo Menagerie assets in academic work, cite:
+The hardware adapter calls LeRobot's camera, calibration, motor and recording
+interfaces. Hiwonder-specific support is for HX-30HM. Selecting STS3215 switches
+to the fork's Feetech path; it is not a claim that every SO101 servo variant has
+been tested or is mechanically/electrically interchangeable.
 
-```bibtex
-@software{menagerie2022github,
-  author = {Zakka, Kevin and Tassa, Yuval and {MuJoCo Menagerie Contributors}},
-  title = {{MuJoCo Menagerie: A collection of high-quality simulation models for MuJoCo}},
-  url = {http://github.com/google-deepmind/mujoco_menagerie},
-  year = {2022},
-}
-```
-
-Reference files retained locally:
-- `mujoco_menagerie/CITATION.cff`
-- `mujoco_menagerie/franka_emika_panda/README.md`
-- `mujoco_menagerie/franka_emika_panda/LICENSE`
+The original repository's Panda/MuJoCo assets are not part of the replacement
+tree. Their earlier notices remain in the corresponding historical commits.
