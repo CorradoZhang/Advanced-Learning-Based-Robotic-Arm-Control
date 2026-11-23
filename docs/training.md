@@ -38,12 +38,12 @@ its final partial batch and weights loss by sample count.
 ## Run and resume
 
 ```bash
-python -m runner.flow_matching.train --data data/pick_place \
+python -m runner.il.flow_matching.train --data data/pick_place \
   --epochs 200 --batch-size 64 --device cuda:0
 
 # Resume the same dataset for 20 additional epochs, into a new output directory:
-python -m runner.flow_matching.train --data data/pick_place \
-  --resume result/flow_matching/YOUR_RUN/checkpoint/last.pt --epochs 20 --device cuda:0
+python -m runner.il.flow_matching.train --data data/pick_place \
+  --resume result/il/flow_matching/YOUR_RUN/checkpoint/last.pt --epochs 20 --device cuda:0
 ```
 
 The run directory includes the actual model settings, normalization and split
