@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "so101-learning-control"
 version = "0.2.0"
-description = "SO101 visual imitation learning, LeRobot data collection and Flow Matching deployment"
+description = "Learning-based robotic arm control: hardware, data, learning methods and deployment"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {file = "LICENSE"}
