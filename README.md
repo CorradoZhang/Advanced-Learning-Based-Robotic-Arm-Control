@@ -1,43 +1,87 @@
 # Advanced Learning-Based Robotic Arm Control
 
-An experimental project for learning-based robotic arm control, connecting real
-robot demonstrations, policy training, offline evaluation and physical deployment.
-Code is organized by learning category. The current implementation is **visual
-Flow Matching imitation learning (IL) on SO101**.
+A research project for learning-based robotic arm control, bringing together
+robot hardware, data collection, learning algorithms, evaluation and real-world
+execution. SO101 is the current development platform.
 
-[中文指南](docs/README.zh-CN.md) · [Flow Matching workflow](docs/il/flow_matching.md) ·
+The project is organized around **imitation learning (IL)** and **reinforcement
+learning (RL)** as learning categories. Individual methods live within their
+category. Vision-language-action (VLA) policies are a future extension whose
+training and deployment workflow will be placed according to the method used.
+
+**Current release:** the implemented learning method is Visual Flow Matching
+under IL, with demonstration collection, training, offline prediction and SO101
+deployment. RL and VLA are planned directions and have no implementation yet.
+
+[中文使用指南](docs/README.zh-CN.md) · [IL / Flow Matching tutorial](docs/il/flow_matching.md) ·
 [Hardware setup](docs/hardware.md) · [Data and training](docs/training.md)
 
-## Current implementation
+## Project scope
 
-| Category | Method | Available workflow |
-|---|---|---|
-| Imitation learning (IL) | Visual Flow Matching | Collection, data conversion, training, validation and deployment |
+The project connects the main stages of robotic learning research:
 
-The model is adapted from [ReinFlow](https://github.com/ReinFlow/ReinFlow), with
-retained attribution and licenses. This project currently implements its
-imitation-learning/pretraining stage. See [third-party notices](THIRD_PARTY_NOTICES.md).
+- **Hardware and interaction:** configuration, calibration, teleoperation and camera access.
+- **Data:** demonstration recording, dataset preparation and training/validation splits.
+- **Learning:** method implementations, experiment configuration and training entry points.
+- **Evaluation:** offline policy predictions and experiment artifacts.
+- **Deployment:** camera observations, policy inference and physical robot control.
 
-Hiwonder HX-30HM leader/follower hardware has been exercised during development.
-STS3215 selection is available through the hardware adapter, but has not been
-physically validated in this project. The current data/policy path expects six
-joint coordinates and one wrist RGB camera; it is not a general robot interface.
+These capabilities currently support the SO101 Flow Matching workflow. Shared
+components can be extended as additional methods are implemented; data formats
+and deployment interfaces are currently tailored to that workflow.
 
-## Workflow
+## Architecture
 
 ```mermaid
-flowchart LR
-    A[Demonstration collection] --> B[Episode split and normalization]
-    B --> C[IL policy training]
-    C --> D[Offline prediction]
-    D --> E[Live read-only check]
-    E --> F[Explicit robot execution]
+flowchart TB
+    H[Hardware and interaction] --> D[Data collection and preparation]
+    D --> L[Learning methods]
+    L --> E[Evaluation and experiment artifacts]
+    E --> P[Real-world deployment]
+    P --> H
 ```
 
-## Installation
+Learning methods and their execution entry points are separated. Model and
+trainer code live under the learning category; runners expose preparation,
+training and prediction commands. Configuration, hardware tools and deployment
+have their own directories.
 
-Use a dedicated training environment with Python 3.10+ and a suitable PyTorch
-CPU/CUDA build:
+```text
+il/
+└── flow_matching/             # Implemented IL method: model, dataset and trainer
+runner/
+└── il/flow_matching/          # Preparation, training and prediction entry points
+configs/
+├── il/flow_matching.yaml      # Method configuration
+└── hardware.example.yaml     # Hardware configuration template
+scripts/                      # Calibration, teleoperation, recording, camera tools
+deployment/                   # Current SO101 policy execution
+tests/                        # Hardware-free workflow checks
+docs/                         # Method tutorials and hardware documentation
+```
+
+Only implemented modules appear in the source tree. A future RL implementation
+can add its own category and runners when there is working code to include.
+
+## Implementation status
+
+| Area | Status |
+|---|---|
+| SO101 hardware tools | Calibration, teleoperation, demonstration recording and camera preview |
+| Imitation learning | Visual Flow Matching: preparation, training, validation and prediction |
+| Physical deployment | SO101 inference, preview, command limits and fault checks |
+| Reinforcement learning | Planned; no trainer or environment integration yet |
+| VLA integration | Planned; no pretrained model integration yet |
+
+Hiwonder HX-30HM leader/follower arms and a wrist RGB camera have been used during
+development. STS3215 can be selected through the hardware adapter but has not
+been physically validated in this project. The current policy uses five joint
+angles and a calibrated gripper coordinate; the interfaces do not yet support
+arbitrary robot platforms.
+
+## Getting started
+
+Install the project in a Python 3.10+ environment with a suitable PyTorch build:
 
 ```bash
 git clone https://github.com/CorradoZhang/Advanced-Learning-Based-Robotic-Arm-Control.git
@@ -45,113 +89,49 @@ cd Advanced-Learning-Based-Robotic-Arm-Control
 python -m pip install -e '.[prepare,test]'
 ```
 
-For physical collection/control, install the optional pinned Hiwonder LeRobot
-fork in your hardware environment before installing this project:
+For physical robot access, also install the pinned hardware dependency from
+`requirements-hardware.txt`. Training and hardware environments can be separate;
+development used Linux/CUDA training and macOS/CPU inference.
 
-```bash
-python -m pip install -r requirements-hardware.txt
-python -m pip install -e '.[prepare,test]'
-```
+Choose the documentation for your task:
 
-Development used Linux/CUDA training and macOS/CPU inference. Hardware and
-training environments may be separate. Check driver/calibration compatibility
-before replacing an existing working robot environment.
+| Task | Guide |
+|---|---|
+| Configure hardware, calibrate and collect demonstrations | [Hardware guide](docs/hardware.md) |
+| Run the implemented learning workflow | [IL / Visual Flow Matching](docs/il/flow_matching.md) |
+| Understand datasets, normalization and training outputs | [Data and training](docs/training.md) |
+| Follow collection, training and deployment in Chinese | [中文使用指南](docs/README.zh-CN.md) |
 
-## Quick start
+## Research and extension
 
-Copy `configs/hardware.example.yaml` to `hardware.local.yaml` and set your own
-serial ports, calibration IDs and camera index. Local device settings are ignored
-by Git. Calibrate and test teleoperation before collecting demonstrations:
+Additional IL methods can be added alongside `il/flow_matching/`. RL methods can
+be introduced in their own learning category, with their required environments,
+training entry points and evaluation. A VLA integration will need its own model,
+observation/action adaptation and instructions for training or inference.
 
-```bash
-python -m scripts.hardware --config hardware.local.yaml calibrate-leader
-python -m scripts.hardware --config hardware.local.yaml calibrate-follower
-python -m scripts.hardware --config hardware.local.yaml teleoperate
-python -m scripts.hardware --config hardware.local.yaml record \
-  --name pick_place --episodes 30 \
-  --task 'Pick up the object and place it in the container.'
-```
+Each implemented method should document its inputs, action representation,
+training procedure, evaluation and deployment requirements. Shared interfaces
+should grow from those concrete requirements.
 
-Prepare only the chosen dataset, then train the IL policy:
-
-```bash
-python -m runner.il.flow_matching.prepare \
-  --dataset datasets/pick_place --out data/pick_place --val-episodes 3
-python -m runner.il.flow_matching.train \
-  --data data/pick_place --device cuda:0 --epochs 200 --batch-size 64
-```
-
-With 30 episodes, this example uses 27 for training and 3 for validation. Splits
-are made by episode; normalization uses training episodes only. New runs go to
-`result/il/flow_matching/<timestamp_seed>/` and include the checkpoint, resolved
-configuration, normalization statistics, manifest and metrics.
-
-Inspect the model offline before connecting it to a robot. Replace `YOUR_RUN`
-with an actual training output directory:
-
-```bash
-python -m runner.il.flow_matching.predict \
-  --run result/il/flow_matching/YOUR_RUN --data data/pick_place/val.npz
-```
-
-Copy the complete run bundle to the robot computer. Replace `YOUR_PORT` and use
-the same follower calibration ID and camera mounting as collection:
-
-```bash
-# Default: read-only predictions, camera preview, maximum 30 seconds.
-python -m deployment.deploy --run result/il/flow_matching/YOUR_RUN \
-  --port YOUR_PORT --robot-id follower
-
-# Explicitly enable a short physical test after inspecting read-only behavior.
-python -m deployment.deploy --run result/il/flow_matching/YOUR_RUN \
-  --port YOUR_PORT --robot-id follower --execute --duration 5
-```
-
-The first five action coordinates are degrees; the gripper is calibrated 0–100,
-not an angle. Deploy with the checkpoint's matching config, normalization and
-manifest. The runtime requests a stop on Ctrl+C/preview closure and attempts
-per-motor torque release. Support the arm before stopping; software protection
-is not a hardware emergency stop.
-
-## Project structure
-
-```text
-il/flow_matching/              # Policy, visual network, dataset and IL trainer
-runner/il/flow_matching/       # Data conversion, training and prediction CLIs
-configs/il/flow_matching.yaml  # Model/training defaults
-configs/hardware.example.yaml # Hardware template
-scripts/                      # Calibration, teleoperation, collection, camera preview
-deployment/                   # Physical inference and control protection
-tests/                        # Hardware-free workflow tests
-docs/                         # Method, hardware and troubleshooting documentation
-```
-
-Only implemented modules are included. The current SO101 pipeline is the first
-working application; new learning methods can be added when implemented without
-relabeling the existing IL policy.
-
-## Documentation
-
-- [Visual Flow Matching: full workflow, model and commands](docs/il/flow_matching.md)
-- [Data format, normalization, training and resume](docs/training.md)
-- [Hardware configuration, diagnostics and known faults](docs/hardware.md)
-- [中文使用指南](docs/README.zh-CN.md)
-- [Licenses and upstream provenance](THIRD_PARTY_NOTICES.md)
-
-## Verification and limits
+## Verification and limitations
 
 ```bash
 python -m pytest
 ```
 
-Tests cover synthetic video/Parquet conversion, CPU training, resume, checkpoint
-prediction and simulated controller guards. They do not actuate hardware. No
-recordings, weights, run artifacts or device calibration files are shipped.
+Tests cover synthetic data conversion, CPU training, checkpoint resume,
+prediction and simulated controller guards. They do not actuate hardware.
+Recordings, model weights and device calibration files are not bundled.
 
-Camera stalls, gripper overload under sustained contact and dependence on pose
-and viewpoint remain experimental limitations. Validation loss is not a task
-success rate. The software detects faults but does not remove their physical
-causes, automatically reset the arm, or establish broad task generalization.
+The current SO101 workflow remains experimental. Camera stalls, gripper overload
+and sensitivity to initial pose and viewpoint require further work. Validation
+loss is not a physical task success rate; software limits and fault checks do
+not replace a hardware emergency stop.
 
-Project integration code is MIT licensed; original notices are retained in the
-IL implementation. Earlier Panda/MuJoCo prototype code remains in Git history.
+## License and acknowledgments
+
+Project integration code is MIT licensed. The current Flow Matching
+implementation adapts code from [ReinFlow](https://github.com/ReinFlow/ReinFlow)
+and retains the original attribution and license. See
+[third-party notices](THIRD_PARTY_NOTICES.md) for provenance.
+Earlier Panda/MuJoCo prototype code remains in Git history.
