@@ -125,4 +125,3 @@ Project integration code is MIT licensed. The current Flow Matching
 implementation adapts code from [ReinFlow](https://github.com/ReinFlow/ReinFlow)
 and retains the original attribution and license. See
 [third-party notices](THIRD_PARTY_NOTICES.md) for provenance.
-Earlier Panda/MuJoCo prototype code remains in Git history.

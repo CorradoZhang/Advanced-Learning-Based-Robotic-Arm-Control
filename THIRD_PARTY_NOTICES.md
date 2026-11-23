@@ -40,6 +40,3 @@ The hardware adapter calls LeRobot's camera, calibration, motor and recording
 interfaces. Hiwonder-specific support is for HX-30HM. Selecting STS3215 switches
 to the fork's Feetech path; it is not a claim that every SO101 servo variant has
 been tested or is mechanically/electrically interchangeable.
-
-The original repository's Panda/MuJoCo assets are not part of the replacement
-tree. Their earlier notices remain in the corresponding historical commits.

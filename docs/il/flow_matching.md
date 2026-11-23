@@ -9,8 +9,7 @@ with live wrist-camera observations and joint feedback.
 
 The Hiwonder HX-30HM hardware path has been exercised on a real leader/follower
 pair. A configurable STS3215 path is included but has **not been physically
-validated in this project**. This repository replaces the earlier Panda/MuJoCo
-prototype; that version remains available in Git history.
+validated in this project**.
 
 [中文指南](../README.zh-CN.md) · [Hardware setup](../hardware.md) ·
 [Data and training](../training.md) · [Attribution](../../THIRD_PARTY_NOTICES.md)
