@@ -32,15 +32,6 @@ and deployment interfaces are currently tailored to that workflow.
 
 ## Architecture
 
-```mermaid
-flowchart TB
-    H[Hardware and interaction] --> D[Data collection and preparation]
-    D --> L[Learning methods]
-    L --> E[Evaluation and experiment artifacts]
-    E --> P[Real-world deployment]
-    P --> H
-```
-
 Learning methods and their execution entry points are separated. Model and
 trainer code live under the learning category; runners expose preparation,
 training and prediction commands. Configuration, hardware tools and deployment
