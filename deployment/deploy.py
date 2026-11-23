@@ -42,9 +42,9 @@ def canonical_config(config):
 class Policy:
     def __init__(self, checkpoint, config, stats, manifest, device="cpu", weights="model", steps=20):
         # Use official modules directly; no Hydra/simulator dependencies on the recording Mac.
-        from algorithm.flow_matching.vit import VitEncoder
-        from algorithm.flow_matching.network import VisionFlowMLP
-        from algorithm.flow_matching.model import ReFlow
+        from il.flow_matching.vit import VitEncoder
+        from il.flow_matching.network import VisionFlowMLP
+        from il.flow_matching.model import ReFlow
         cfg = canonical_config(yaml.safe_load(Path(config).read_text()))
         meta = json.loads(Path(manifest).read_text())
         if meta["joint_names"] != JOINTS:

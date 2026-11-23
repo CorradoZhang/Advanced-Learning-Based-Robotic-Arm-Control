@@ -5,9 +5,9 @@
 - Source: https://github.com/ReinFlow/ReinFlow
 - Reference revision: `e722e151bed767f3ffef47527cf697f2358af55d`
 - Paper: https://arxiv.org/abs/2505.22094
-- License: MIT; retained in `algorithm/flow_matching/LICENSE-ReinFlow` and source headers.
+- License: MIT; retained in `il/flow_matching/LICENSE-ReinFlow` and source headers.
 - Included/adapted components: `model.py`, `network.py`, `vit.py`, `mlp.py`,
-  `modules.py`, `embedding.py`, `dataset.py`, `scheduler.py` under `algorithm/flow_matching/`.
+  `modules.py`, `embedding.py`, `dataset.py`, `scheduler.py` under `il/flow_matching/`.
 - Local adaptations: package-relative imports, compact model reconstruction,
   episode-bounded NPZ loading, batched intermediate sample storage, CPU-compatible
   attention backend selection, and the offline trainer/CLI integration.

@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import sys
 
-ROOT=Path(__file__).resolve().parents[2]
+ROOT=Path(__file__).resolve().parents[3]
 sys.path.insert(0,str(ROOT))
 
 
@@ -19,7 +19,7 @@ def main():
     import numpy as np
     import torch
     from omegaconf import OmegaConf
-    from algorithm.flow_matching.model import build_model
+    from il.flow_matching.model import build_model
     cfg=OmegaConf.load(args.run/"config.yaml")
     cfg.device=args.device
     model=build_model(cfg)

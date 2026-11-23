@@ -7,14 +7,14 @@ from pathlib import Path
 import shutil
 import sys
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0,str(ROOT))
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--data",type=Path,required=True,help="Prepared dataset directory")
-    p.add_argument("--config",type=Path,default=ROOT/"configs/flow_matching.yaml")
+    p.add_argument("--config",type=Path,default=ROOT/"configs/il/flow_matching.yaml")
     p.add_argument("--output",type=Path,help="New output directory; existing runs are never overwritten")
     p.add_argument("--epochs",type=int,default=200)
     p.add_argument("--batch-size",type=int,default=64)
@@ -27,7 +27,7 @@ def main():
         p.error("epochs and batch size must be positive")
     from omegaconf import OmegaConf
     import numpy as np
-    from algorithm.flow_matching.trainer import FlowMatchingTrainer
+    from il.flow_matching.trainer import FlowMatchingTrainer
     data = args.data.resolve()
     for name in ("train.npz","val.npz","normalization.npz","manifest.json"):
         if not (data/name).is_file():
@@ -44,7 +44,7 @@ def main():
         for key in ("train_episodes","val_episodes","splits","joint_names"):
             if previous[key] != current[key]:
                 p.error(f"Resume dataset differs: {key}")
-    output=args.output or ROOT/"result/flow_matching"/f"{datetime.now():%Y%m%d_%H%M%S_%f}_{args.seed}"
+    output=args.output or ROOT/"result/il/flow_matching"/f"{datetime.now():%Y%m%d_%H%M%S_%f}_{args.seed}"
     if output.exists():
         p.error(f"Output already exists: {output}")
     cfg=OmegaConf.load(args.config)

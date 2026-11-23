@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from algorithm.flow_matching.dataset import StitchedSequenceDataset
+from il.flow_matching.dataset import StitchedSequenceDataset
 from scripts.hardware import build_command
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -60,7 +60,7 @@ def test_conversion_training_and_deployment_offline(tmp_path):
     raw=tmp_path/"raw"
     df=synthetic_dataset(raw)
     prepared=tmp_path/"prepared"
-    run("-m","runner.flow_matching.prepare","--dataset",raw,"--out",prepared,"--val-episodes",1)
+    run("-m","runner.il.flow_matching.prepare","--dataset",raw,"--out",prepared,"--val-episodes",1)
     manifest=json.loads((prepared/"manifest.json").read_text())
     assert len(manifest["train_episodes"])==2 and len(manifest["val_episodes"])==1
     assert not set(manifest["train_episodes"])&set(manifest["val_episodes"])
@@ -76,17 +76,17 @@ def test_conversion_training_and_deployment_offline(tmp_path):
     for start,_ in ds.indices:
         assert start//20==(start+15)//20
     output=tmp_path/"run"
-    run("-m","runner.flow_matching.train","--data",prepared,"--output",output,
+    run("-m","runner.il.flow_matching.train","--data",prepared,"--output",output,
         "--epochs",2,"--batch-size",4,"--device","cpu")
     ckpt=torch.load(output/"checkpoint/best_val.pt",map_location="cpu",weights_only=True)
     assert ckpt["global_step"]>0 and np.isfinite(ckpt["best_val"])
-    result=json.loads(run("-m","runner.flow_matching.predict","--run",output,
+    result=json.loads(run("-m","runner.il.flow_matching.predict","--run",output,
         "--data",prepared/"val.npz","--device","cpu"))
     assert result["shape"]==[16,6] and np.isfinite(result["actions"]).all()
     offline=json.loads(run("-m","deployment.deploy","--run",output,
         "--offline-data",prepared/"val.npz","--no-preview"))
     assert offline["mode"]=="offline" and offline["shape"]==[16,6]
-    run("-m","runner.flow_matching.train","--data",prepared,"--output",tmp_path/"resume",
+    run("-m","runner.il.flow_matching.train","--data",prepared,"--output",tmp_path/"resume",
         "--resume",output/"checkpoint/last.pt","--epochs",1,"--batch-size",4,"--device","cpu")
     resumed=torch.load(tmp_path/"resume/checkpoint/last.pt",map_location="cpu",weights_only=True)
     assert resumed["epoch"]==3 and resumed["global_step"]>ckpt["global_step"]

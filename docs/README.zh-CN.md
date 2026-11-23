@@ -46,9 +46,9 @@ python -m scripts.hardware --config hardware.local.yaml record \
 ## 转换和训练
 
 ```bash
-python -m runner.flow_matching.prepare \
+python -m runner.il.flow_matching.prepare \
   --dataset datasets/pick_place --out data/pick_place --val-episodes 3
-python -m runner.flow_matching.train \
+python -m runner.il.flow_matching.train \
   --data data/pick_place --device cuda:0 --epochs 200 --batch-size 64
 ```
 
@@ -56,22 +56,22 @@ python -m runner.flow_matching.train \
 预处理将 RGB 双线性缩放为 96×96，保存 CHW uint8。模型输入图像和 6 维关节状态，
 预测未来 16 帧动作。前五维为角度，夹爪为校准后的 0～100 标度。
 
-`result/flow_matching/` 保存模型、完整配置、统计参数、数据说明和训练日志。
+`result/il/flow_matching/` 保存模型、完整配置、统计参数、数据说明和训练日志。
 验证损失不能直接视为抓取成功率。换数据集后必须使用新训练产生的整套部署文件。
 
 ## 部署
 
 ```bash
 # 先用验证图像离线检查，不连接硬件。
-python -m runner.flow_matching.predict --run result/flow_matching/YOUR_RUN \
+python -m runner.il.flow_matching.predict --run result/il/flow_matching/YOUR_RUN \
   --data data/pick_place/val.npz
 
 # 默认只读，打开预览，不发送动作或配置扭矩。
-python -m deployment.deploy --run result/flow_matching/YOUR_RUN \
+python -m deployment.deploy --run result/il/flow_matching/YOUR_RUN \
   --port YOUR_PORT --robot-id follower
 
 # 检查通过、工作区准备好后，显式启动 5 秒执行。
-python -m deployment.deploy --run result/flow_matching/YOUR_RUN \
+python -m deployment.deploy --run result/il/flow_matching/YOUR_RUN \
   --port YOUR_PORT --robot-id follower --execute --duration 5
 ```
 
