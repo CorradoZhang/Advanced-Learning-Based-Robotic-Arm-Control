@@ -1,0 +1,9 @@
+# Copy to hardware.local.yaml, then replace the ports with YOUR devices.
+# macOS: /dev/cu.usbmodem... ; Linux: /dev/ttyACM... or /dev/serial/by-id/...
+leader_port: null
+follower_port: null
+leader_id: leader
+follower_id: follower
+motor_model: hx30hm
+camera_index: 0
+# Omit camera_backend for the OS default (AVFoundation on macOS, ANY elsewhere).

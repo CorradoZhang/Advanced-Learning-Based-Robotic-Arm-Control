@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "so101-learning-control"
+version = "0.1.0"
+description = "SO101 visual imitation learning, LeRobot data collection and Flow Matching deployment"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+dependencies = [
+  "torch>=2.4,<3",
+  "numpy>=1.24,<3",
+  "einops>=0.8,<1",
+  "omegaconf==2.3.0",
+  "PyYAML>=6,<7",
+  "Pillow>=10",
+  "tqdm>=4.66",
+]
+
+[project.optional-dependencies]
+prepare = ["pandas>=2,<3", "pyarrow>=14", "av>=12,<17"]
+test = ["pytest>=8,<9"]
+
+[project.scripts]
+so101-hardware = "scripts.hardware:main"
+so101-prepare = "runner.flow_matching.prepare:main"
+so101-train = "runner.flow_matching.train:main"
+so101-predict = "runner.flow_matching.predict:main"
+so101-deploy = "deployment.deploy:main"
+
+[tool.setuptools.packages.find]
+include = ["algorithm*", "runner*", "deployment*", "scripts*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "deployment/test_deploy.py"]
+addopts = "-q"
