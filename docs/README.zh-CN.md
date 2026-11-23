@@ -24,7 +24,7 @@ python -m pip install -e '.[prepare,test]'
 
 硬件环境额外安装 `requirements-hardware.txt` 指定的 Hiwonder LeRobot 分支。
 建议与服务器训练环境分开。复制 `configs/hardware.example.yaml` 为
-`hardware.local.yaml`，填写真实串口、校准 ID 和相机编号；本地配置被 Git 忽略。
+`hardware.local.yaml`，填写真实串口、校准 ID 和相机编号。
 
 ## 采集
 
