@@ -1,9 +1,13 @@
-"""LeRobot 录制入口，为偶发的旧相机帧增加有界的新帧等待。"""
+"""LeRobot recording entry point with bounded recovery for occasional stale camera frames."""
 
 import logging
 import time
 import os
 import sys
+
+from pathlib import Path
+import shutil
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 
 from lerobot.cameras.opencv.camera_opencv import OpenCVCamera
 from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig
@@ -47,7 +51,7 @@ def check_camera(duration_s=30):
             with camera.frame_lock:
                 max_age_ms = max(max_age_ms, (time.perf_counter() - camera.latest_timestamp) * 1000)
             frames += 1
-        print(f"相机检查通过：{frames} 帧，持续 {duration_s} 秒，最大帧龄 {max_age_ms:.1f} ms。", flush=True)
+        print(f"Camera check passed: {frames} frames in {duration_s} seconds; maximum frame age {max_age_ms:.1f} ms.", flush=True)
     finally:
         if camera.is_connected or camera.thread is not None:
             camera.disconnect()
@@ -57,16 +61,16 @@ def read_latest_with_recovery(self, max_age_ms=500):
     try:
         return original_read_latest(self, max_age_ms=max_age_ms)
     except TimeoutError as stale_error:
-        logger.warning("%s 画面过期，等待新帧（最多 500 ms）。", self)
+        logger.warning("%s frame is stale; waiting up to 500 ms for a fresh frame.", self)
         deadline = time.perf_counter() + 0.5
         while True:
             remaining_ms = (deadline - time.perf_counter()) * 1000
             if remaining_ms <= 0:
-                raise TimeoutError(f"{self} 在额外等待 500 ms 后仍未恢复新画面。") from stale_error
+                raise TimeoutError(f"{self} did not deliver a fresh frame after an additional 500 ms.") from stale_error
             try:
-                # async_read 会消费事件，包括之前未消费的旧帧事件。
+                # async_read consumes the event, including any unconsumed event from an older frame.
                 self.async_read(timeout_ms=remaining_ms)
-                # 再检查帧龄，恢复时要求画面在 100 ms 内，避免保存旧帧。
+                # Recheck frame age; recovery requires a frame no older than 100 ms to avoid saving stale images.
                 return original_read_latest(self, max_age_ms=min(max_age_ms, 100))
             except TimeoutError:
                 continue
@@ -78,4 +82,28 @@ if __name__ == "__main__":
         sys.exit(0)
     OpenCVCamera.read_latest = read_latest_with_recovery
     OpenCVCamera.connect = connect_with_cleanup
-    main()
+    dataset_root = next((arg.split('=',1)[1] for arg in sys.argv if arg.startswith('--dataset.root=')),None)
+    if dataset_root is None and '--dataset.root' in sys.argv:
+        dataset_root = sys.argv[sys.argv.index('--dataset.root')+1]
+    enabled = os.environ.get('APRILTAG_ENABLED','0') == '1'
+    if enabled:
+        from vision.apriltag.detector import TagObservations
+        from vision.apriltag.recording import check_metadata, install
+        if not dataset_root or not os.environ.get('APRILTAG_INTRINSICS'):
+            raise ValueError('AprilTag recording needs --dataset.root and APRILTAG_INTRINSICS')
+        detector = TagObservations(os.environ['APRILTAG_INTRINSICS'],
+            tag_size=float(os.environ.get('APRILTAG_SIZE_M','.0215')),
+            tag_id=int(os.environ.get('APRILTAG_ID','0')))
+        check_metadata(dataset_root,detector)
+        install(detector)
+    elif dataset_root and (Path(str(dataset_root)+'.apriltag.json').exists() or
+                            (Path(dataset_root)/'meta/apriltag.json').exists()):
+        raise ValueError('Cannot resume an AprilTag dataset in RGB-only mode')
+    try:
+        main()
+    finally:
+        if enabled and dataset_root:
+            sidecar = Path(str(dataset_root)+'.apriltag.json')
+            destination = Path(dataset_root)/'meta'
+            if sidecar.exists() and destination.is_dir():
+                shutil.copy2(sidecar,destination/'apriltag.json')

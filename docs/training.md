@@ -74,3 +74,10 @@ This verifies software/data plumbing, not robot learning performance. The projec
 does not ship demonstration data or claim a benchmark success rate. VLA,
 language-conditioned tasks, online RL and sim-to-real training are not implemented
 by these entry points.
+
+## Optional auxiliary observations
+
+For RGB + AprilTag, prepare with `--apriltag`. States become N×17 while actions
+remain N×6. Training automatically selects the corresponding config and stores
+the detector metadata with the run. See [AprilTag assistance](apriltag.md) for
+the shared feature contract and a baseline comparison on the same split.

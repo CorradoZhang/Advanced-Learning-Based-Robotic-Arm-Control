@@ -28,8 +28,8 @@ class StitchedSequenceDataset(torch.utils.data.Dataset):
             if lengths.ndim!=1 or not np.issubdtype(lengths.dtype,np.integer) or np.any(lengths<=0):
                 raise ValueError("traj_lengths must be positive integer episode lengths")
             n=int(lengths.sum())
-            if data["states"].shape!=(n,6) or data["actions"].shape!=(n,6):
-                raise ValueError("Expected states/actions [sum(traj_lengths), 6]")
+            if data["states"].ndim != 2 or data["states"].shape[0] != n or data["states"].shape[1] not in (6,17) or data["actions"].shape!=(n,6):
+                raise ValueError("Expected states [N,6 or 17] and actions [N,6]")
             if not np.isfinite(data["states"]).all() or not np.isfinite(data["actions"]).all():
                 raise ValueError("Non-finite states/actions")
             if use_img and (data["images"].shape!=(n,3,96,96) or data["images"].dtype!=np.uint8):

@@ -92,3 +92,7 @@ python -m deployment.deploy --port YOUR_PORT --robot-id follower --release
 软件的限速、限位和故障检查不能代替硬件急停。
 
 完整说明见仓库根目录 [README](../README.md) 和 [硬件排错](hardware.md)。
+
+## AprilTag 视觉辅助
+
+新增可选的 RGB + AprilTag 模式，支持相机标定、检测预览、采集、17 维状态训练与部署。纯 RGB 模式保留。完整步骤见 [AprilTag workflow](apriltag.md)。位姿位于相机坐标系，不代表已完成手眼标定。

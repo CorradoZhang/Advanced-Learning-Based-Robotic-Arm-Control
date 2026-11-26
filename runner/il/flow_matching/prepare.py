@@ -15,6 +15,7 @@ def main():
     p.add_argument("--out", type=Path, required=True)
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--val-episodes", type=int, default=3)
+    p.add_argument("--apriltag",action="store_true",help="Append AprilTag auxiliary condition features")
     args = p.parse_args()
     if args.out.exists():
         raise FileExistsError(f"Refusing to overwrite {args.out}")
@@ -40,6 +41,25 @@ def main():
                  action_min=actions[train_mask].min(0), action_max=actions[train_mask].max(0))
     normalized_states = 2 * (states-stats["obs_min"]) / (stats["obs_max"]-stats["obs_min"]+1e-6)-1
     normalized_actions = 2 * (actions-stats["action_min"]) / (stats["action_max"]-stats["action_min"]+1e-6)-1
+    tag_manifest = None
+    if args.apriltag:
+        from vision.apriltag.features import FEATURE_ORDER, apriltag_features, normalize_apriltag, fit_normalization, validate_metadata
+        metadata_path = root/'meta/apriltag.json'
+        if not metadata_path.exists():
+            metadata_path = root.parent/(root.name+'.apriltag.json')
+        metadata = json.loads(metadata_path.read_text())
+        validate_metadata(metadata)
+        keys = ('position', 'rotation', 'valid', 'reprojection_error')
+        missing = [key for key in keys if 'observation.apriltag.'+key not in data]
+        if missing:
+            raise ValueError(f'Missing AprilTag dataset columns: {missing}')
+        tag = apriltag_features(*(np.stack(data['observation.apriltag.'+key]) for key in keys))
+        stats.update(fit_normalization(tag, train_mask))
+        normalized_states = np.concatenate((normalized_states, normalize_apriltag(tag, stats)), axis=-1)
+        tag_manifest = dict(role='policy_condition', feature_order=FEATURE_ORDER,
+            rotation='First two columns of the tag-to-camera rotation matrix',
+            normalization='Train valid frames only; z-score; validity unscaled; invalid zero',
+            metadata=metadata)
     # Keep held-out values outside the training range: do not conceal extrapolation.
     images = np.empty((len(data), 3, 96, 96), dtype=np.uint8)
     assigned = np.zeros(len(data), dtype=bool)
@@ -69,12 +89,15 @@ def main():
     assert assigned.all(), "Missing video frames"
     args.out.mkdir(parents=True)
     np.savez(args.out/"normalization.npz", **stats)
+    if tag_manifest:
+        (args.out/'apriltag.json').write_text(json.dumps(tag_manifest['metadata'],indent=2))
     manifest = dict(source=str(root), seed=args.seed, fps=info["fps"],
         train_episodes=train_ids, val_episodes=val_ids, image_shape=[3,96,96],
         image_transform="RGB bilinear resize to 96x96, uint8 0..255",
         joint_names=info["features"]["action"]["names"],
         action_representation="absolute_joint_positions_in_lerobot_native_units",
-        joint_units=["degrees"]*5+["calibrated_0_100"], splits={})
+        joint_units=["degrees"]*5+["calibrated_0_100"], obs_dim=int(normalized_states.shape[1]),
+        apriltag=tag_manifest, splits={})
     for split, selected in (("train",train_ids),("val",val_ids)):
         mask = np.isin(episode,selected)
         lengths = np.array([np.sum(episode==i) for i in selected],dtype=np.int64)

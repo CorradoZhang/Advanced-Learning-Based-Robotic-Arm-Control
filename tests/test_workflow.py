@@ -9,6 +9,7 @@ import av
 import numpy as np
 import pandas as pd
 import torch
+import pytest
 
 from il.flow_matching.dataset import StitchedSequenceDataset
 from scripts.hardware import build_command
@@ -56,11 +57,23 @@ def synthetic_dataset(root):
     return df
 
 
-def test_conversion_training_and_deployment_offline(tmp_path):
+@pytest.mark.parametrize("assisted",[False,True])
+def test_conversion_training_and_deployment_offline(tmp_path, assisted):
     raw=tmp_path/"raw"
     df=synthetic_dataset(raw)
+    if assisted:
+        pytest.importorskip("cv2")
+        n=len(df)
+        df['observation.apriltag.position']=list(np.column_stack((np.arange(n)*.001,np.ones(n)*.02,np.ones(n)*.2)).astype(np.float32))
+        df['observation.apriltag.rotation']=list(np.zeros((n,3),np.float32))
+        df['observation.apriltag.valid']=list((np.arange(n)%3!=0).astype(np.float32)[:,None])
+        df['observation.apriltag.reprojection_error']=list(np.full((n,1),.4,np.float32))
+        df.to_parquet(raw/'data/chunk-000/file-000.parquet')
+        metadata=dict(family='tag25h9',tag_id=0,tag_size_m=.0215,camera_key='wrist',
+            calibration=dict(camera_matrix=[[500,0,320],[0,500,240],[0,0,1]],distortion_coefficients=[0]*5,image_size=[640,480]))
+        (raw/'meta/apriltag.json').write_text(json.dumps(metadata))
     prepared=tmp_path/"prepared"
-    run("-m","runner.il.flow_matching.prepare","--dataset",raw,"--out",prepared,"--val-episodes",1)
+    run("-m","runner.il.flow_matching.prepare","--dataset",raw,"--out",prepared,"--val-episodes",1,*(["--apriltag"] if assisted else []))
     manifest=json.loads((prepared/"manifest.json").read_text())
     assert len(manifest["train_episodes"])==2 and len(manifest["val_episodes"])==1
     assert not set(manifest["train_episodes"])&set(manifest["val_episodes"])
@@ -69,8 +82,24 @@ def test_conversion_training_and_deployment_offline(tmp_path):
         assert np.array_equal(stats["action_min"],np.stack(selected.action).min(0))
         reconstructed=(z["actions"]+1)/2*(stats["action_max"]-stats["action_min"]+1e-6)+stats["action_min"]
         np.testing.assert_allclose(reconstructed,np.stack(selected.action),atol=3e-6)
+        assert z['states'].shape[1] == (17 if assisted else 6)
+        if assisted:
+            from vision.apriltag.features import apriltag_features, normalize_apriltag
+            valid_rows=selected[selected['observation.apriltag.valid'].map(lambda v:v[0]==1)]
+            np.testing.assert_allclose(stats['apriltag_mean'][:3],np.stack(valid_rows['observation.apriltag.position']).mean(0),atol=1e-7)
+            tag=apriltag_features(*(np.stack(selected['observation.apriltag.'+key]) for key in ('position','rotation','valid','reprojection_error')))
+            np.testing.assert_allclose(z['states'][:,6:],normalize_apriltag(tag,stats),atol=1e-6)
+            np.testing.assert_array_equal(z['states'][tag[:,9]==0,6:],0)
         assert z["images"].dtype==np.uint8 and z["images"].shape==(40,3,96,96)
         assert z["images"][:,0].mean()>z["images"][:,2].mean()
+    if assisted:
+        baseline=tmp_path/'rgb_baseline'
+        run('-m','runner.il.flow_matching.prepare','--dataset',raw,'--out',baseline,'--val-episodes',1)
+        rgb_manifest=json.loads((baseline/'manifest.json').read_text())
+        assert rgb_manifest['train_episodes']==manifest['train_episodes']
+        with np.load(baseline/'train.npz') as rgb_data,np.load(prepared/'train.npz') as tag_data:
+            np.testing.assert_array_equal(rgb_data['images'],tag_data['images'])
+            np.testing.assert_array_equal(rgb_data['states'],tag_data['states'][:,:6])
     ds=StitchedSequenceDataset(str(prepared/"train.npz"),horizon_steps=16,device="cpu")
     assert len(ds)==10
     for start,_ in ds.indices:
@@ -86,6 +115,24 @@ def test_conversion_training_and_deployment_offline(tmp_path):
     offline=json.loads(run("-m","deployment.deploy","--run",output,
         "--offline-data",prepared/"val.npz","--no-preview"))
     assert offline["mode"]=="offline" and offline["shape"]==[16,6]
+    if assisted:
+        from deployment.deploy import Policy
+        from vision.apriltag.detector import TagObservations
+        from vision.apriltag.features import observation_features
+        policy=Policy(output/'checkpoint/best_val.pt',output/'config.yaml',output/'normalization.npz',output/'manifest.json')
+        with np.load(prepared/'val.npz') as data:
+            rgb=data['images'][0].transpose(1,2,0)
+        observation=TagObservations(metadata['calibration']).extract(np.zeros((480,640,3),np.uint8))
+        condition=policy.condition_state(np.zeros(6),observation)
+        assert condition.shape==(17,) and not condition[6:].any()
+        assert policy.predict(np.zeros((480,640,3),np.uint8),np.zeros(6),observation).shape==(16,6)
+        changed=json.loads((prepared/'manifest.json').read_text())
+        changed['apriltag']['metadata']['tag_size_m']=.03
+        (prepared/'manifest.json').write_text(json.dumps(changed))
+        rejected=subprocess.run([sys.executable,'-m','runner.il.flow_matching.train','--data',str(prepared),
+            '--resume',str(output/'checkpoint/last.pt'),'--device','cpu'],cwd=ROOT,capture_output=True,text=True)
+        assert rejected.returncode!=0 and 'Resume dataset differs: apriltag' in rejected.stderr
+        (prepared/'manifest.json').write_text(json.dumps(manifest))
     run("-m","runner.il.flow_matching.train","--data",prepared,"--output",tmp_path/"resume",
         "--resume",output/"checkpoint/last.pt","--epochs",1,"--batch-size",4,"--device","cpu")
     resumed=torch.load(tmp_path/"resume/checkpoint/last.pt",map_location="cpu",weights_only=True)

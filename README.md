@@ -14,7 +14,7 @@ under IL, with demonstration collection, training, offline prediction and SO101
 deployment. RL and VLA are planned directions and have no implementation yet.
 
 [中文使用指南](docs/README.zh-CN.md) · [IL / Flow Matching tutorial](docs/il/flow_matching.md) ·
-[Hardware setup](docs/hardware.md) · [Data and training](docs/training.md)
+[Hardware setup](docs/hardware.md) · [Data and training](docs/training.md) · [AprilTag assistance](docs/apriltag.md)
 
 ## Project scope
 
@@ -42,8 +42,10 @@ il/
 └── flow_matching/             # Implemented IL method: model, dataset and trainer
 runner/
 └── il/flow_matching/          # Preparation, training and prediction entry points
+vision/
+└── apriltag/                  # Optional detection, shared features and overlays
 configs/
-├── il/flow_matching.yaml      # Method configuration
+├── il/flow_matching*.yaml     # RGB and RGB + AprilTag configurations
 └── hardware.example.yaml     # Hardware configuration template
 scripts/                      # Calibration, teleoperation, recording, camera tools
 deployment/                   # Current SO101 policy execution
@@ -60,6 +62,7 @@ can add its own category and runners when there is working code to include.
 |---|---|
 | SO101 hardware tools | Calibration, teleoperation, demonstration recording and camera preview |
 | Imitation learning | Visual Flow Matching: preparation, training, validation and prediction |
+| AprilTag assistance | Camera calibration, pose features, recording and 17-D policy conditioning |
 | Physical deployment | SO101 inference, preview, command limits and fault checks |
 | Reinforcement learning | Planned; no trainer or environment integration yet |
 | VLA integration | Planned; no pretrained model integration yet |
@@ -89,6 +92,7 @@ Choose the documentation for your task:
 | Task | Guide |
 |---|---|
 | Configure hardware, calibrate and collect demonstrations | [Hardware guide](docs/hardware.md) |
+| Add AprilTag pose features to RGB | [AprilTag workflow](docs/apriltag.md) |
 | Run the implemented learning workflow | [IL / Visual Flow Matching](docs/il/flow_matching.md) |
 | Understand datasets, normalization and training outputs | [Data and training](docs/training.md) |
 | Follow collection, training and deployment in Chinese | [中文使用指南](docs/README.zh-CN.md) |
@@ -125,3 +129,11 @@ Project integration code is MIT licensed. The current Flow Matching
 implementation adapts code from [ReinFlow](https://github.com/ReinFlow/ReinFlow)
 and retains the original attribution and license. See
 [third-party notices](THIRD_PARTY_NOTICES.md) for provenance.
+
+## Optional AprilTag visual assistance
+
+The RGB baseline can be extended with camera-frame AprilTag pose features. The
+shared `vision/apriltag` module supports calibration, detection preview, recording,
+train-only normalization, 17-D Flow Matching conditioning and deployment overlays.
+RGB-only configurations remain available. See the complete
+[AprilTag workflow](docs/apriltag.md) for commands, feature definitions and limitations.

@@ -21,6 +21,7 @@ dependencies = [
 
 [project.optional-dependencies]
 prepare = ["pandas>=2,<3", "pyarrow>=14", "av>=12,<17"]
+vision = ["opencv-contrib-python>=4.8,<5"]
 test = ["pytest>=8,<9"]
 
 [project.scripts]
@@ -31,7 +32,7 @@ so101-predict = "runner.il.flow_matching.predict:main"
 so101-deploy = "deployment.deploy:main"
 
 [tool.setuptools.packages.find]
-include = ["il*", "runner*", "deployment*", "scripts*"]
+include = ["il*", "runner*", "deployment*", "scripts*", "vision*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "deployment/test_deploy.py"]

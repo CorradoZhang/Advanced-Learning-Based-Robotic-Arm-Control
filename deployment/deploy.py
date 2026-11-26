@@ -51,8 +51,18 @@ class Policy:
             raise ValueError("Joint order differs from this SO101 controller")
         if cfg["cond_steps"] != 1 or cfg["img_cond_steps"] != 1:
             raise ValueError("This controller supports one observation frame only")
-        if cfg["action_dim"] != 6 or cfg["obs_dim"] != 6:
-            raise ValueError("Expected six native SO101 joint values")
+        if cfg["action_dim"] != 6 or cfg["obs_dim"] not in (6,17):
+            raise ValueError("Expected six actions and six or seventeen observation features")
+        self.obs_dim = cfg['obs_dim']
+        tag = meta.get('apriltag')
+        self.tag_metadata = tag['metadata'] if tag else None
+        if bool(tag) != (self.obs_dim == 17) or meta.get('obs_dim',6) != self.obs_dim:
+            raise ValueError('Manifest and model AprilTag mode disagree')
+        if tag:
+            from vision.apriltag.features import FEATURE_ORDER, validate_metadata
+            validate_metadata(self.tag_metadata)
+            if tag['feature_order'] != FEATURE_ORDER or self.tag_metadata['family'] != 'tag25h9':
+                raise ValueError('Unsupported AprilTag feature contract')
         self.device = torch.device(device)
         self.steps = steps
         self.fps = int(meta["fps"])
@@ -66,10 +76,10 @@ class Policy:
         network_options = {k: v for k, v in ncfg.items() if k not in (
             "_target_", "backbone", "img_cond_steps", "cond_dim", "horizon_steps", "action_dim", "augment")}
         network = VisionFlowMLP(backbone=backbone, action_dim=6,
-            horizon_steps=cfg["horizon_steps"], cond_dim=6, img_cond_steps=1,
+            horizon_steps=cfg["horizon_steps"], cond_dim=self.obs_dim, img_cond_steps=1,
             augment=False, **network_options)
         self.model = ReFlow(network, str(self.device), cfg["horizon_steps"], 6,
-            cfg["model"]["act_min"], cfg["model"]["act_max"], 6, steps,
+            cfg["model"]["act_min"], cfg["model"]["act_max"], self.obs_dim, steps,
             cfg.get("seed", 42), sample_t_type=cfg["model"].get("sample_t_type", "uniform"))
         checkpoint = torch.load(checkpoint, map_location=self.device, weights_only=True)
         self.model.load_state_dict(checkpoint[weights], strict=True)
@@ -78,7 +88,15 @@ class Policy:
         with np.load(stats, allow_pickle=False) as z:
             self.stats = {k: z[k].astype(np.float32) for k in (
                 "obs_min", "obs_max", "action_min", "action_max")}
-        for v in self.stats.values():
+            if self.tag_metadata is not None:
+                for key in ('apriltag_mean','apriltag_std'):
+                    value = z[key].astype(np.float32)
+                    if value.shape != (11,) or not np.isfinite(value).all():
+                        raise ValueError('Invalid AprilTag normalization statistics')
+                    self.stats[key] = value
+                if np.any(self.stats['apriltag_std'] <= 0):
+                    raise ValueError('AprilTag standard deviations must be positive')
+        for v in (self.stats[k] for k in ('obs_min','obs_max','action_min','action_max')):
             if v.shape != (6,) or not np.isfinite(v).all():
                 raise ValueError("Invalid normalization statistics")
         for prefix in ("obs", "action"):
@@ -92,15 +110,30 @@ class Policy:
             raise ValueError("Invalid joint observation")
         return 2*(state-self.stats["obs_min"])/(self.stats["obs_max"]-self.stats["obs_min"]+1e-6)-1
 
+    def condition_state(self, state, observation=None):
+        normalized = self.normalize_state(state)
+        if self.tag_metadata is None:
+            return normalized
+        if observation is None:
+            raise ValueError('Auxiliary policy requires AprilTag observations, including valid=0 when missing')
+        from vision.apriltag.features import observation_features
+        return np.concatenate((normalized, observation_features(observation, self.stats)))
+
+    def predict(self, rgb, state, observation=None):
+        return self.predict_condition(rgb, self.condition_state(state, observation))
+
     @torch.inference_mode()
-    def predict(self, rgb, state):
+    def predict_condition(self, rgb, condition):
+        condition = np.asarray(condition,dtype=np.float32)
+        if condition.shape != (self.obs_dim,) or not np.isfinite(condition).all():
+            raise ValueError('Invalid prepared observation condition')
         if rgb.ndim != 3 or rgb.shape[-1] != 3 or rgb.dtype != np.uint8:
             raise ValueError("Camera must return RGB uint8 HWC")
         # Exactly match prepare.py: RGB PIL bilinear resize, uint8 0..255.
         image = np.asarray(Image.fromarray(rgb).resize(
             (self.shape[2], self.shape[1]), Image.Resampling.BILINEAR))
         image = torch.from_numpy(image.transpose(2,0,1).copy())[None,None].to(self.device)
-        state = torch.from_numpy(self.normalize_state(state))[None,None].to(self.device)
+        state = torch.from_numpy(condition)[None,None].to(self.device)
         result = self.model.sample(dict(rgb=image,state=state), inference_steps=self.steps,
                                    clip_intermediate_actions=True).trajectories[0].cpu().numpy()
         result = (result+1)/2*(self.stats["action_max"]-self.stats["action_min"]+1e-6)+self.stats["action_min"]
@@ -279,8 +312,8 @@ def offline_check(policy, archive):
     """One saved observation, same preprocessing as live mode; no hardware imports."""
     with np.load(archive,allow_pickle=False) as z:
         rgb = z["images"][0].transpose(1,2,0)
-        state = (z["states"][0]+1)/2*(policy.stats["obs_max"]-policy.stats["obs_min"]+1e-6)+policy.stats["obs_min"]
-    result = policy.predict(rgb,state)
+        condition = z['states'][0].copy()
+    result = policy.predict_condition(rgb,condition)
     print(json.dumps(dict(mode="offline",shape=list(result.shape),joint_names=JOINTS,
         units=["deg"]*5+["gripper_0_100"],first_action=result[0].tolist()),indent=2))
 
@@ -297,6 +330,11 @@ def live(args, policy):
         raise RuntimeError(f"Calibration missing: {robot.calibration_fpath}; calibrate before inference")
     cam = OpenCVCamera(OpenCVCameraConfig(index_or_path=args.camera_index,width=640,height=480,
         fps=policy.fps,warmup_s=2,backend=Cv2Backends(getattr(args,"camera_backend",1200 if sys.platform=="darwin" else 0))))
+    tag_detector = None
+    if getattr(policy,'tag_metadata',None) is not None:
+        from vision.apriltag.detector import TagObservations
+        tag = policy.tag_metadata
+        tag_detector = TagObservations(tag['calibration'],tag['tag_size_m'],tag['tag_id'],tag['camera_key'])
     stop = False
     def request_stop(*_):
         nonlocal stop
@@ -336,12 +374,16 @@ def live(args, policy):
                 normalized = policy.normalize_state(current)
                 if args.execute and np.abs(normalized).max() > args.max_normalized_state:
                     raise RuntimeError("Current pose lies outside the training range; inspect in read-only mode")
-                if preview and not preview.update(rgb):
+                tag_observation = tag_detector.extract(rgb) if tag_detector else None
+                display = rgb
+                if preview and tag_detector:
+                    display = tag_detector.annotate(rgb,bool(tag_observation['observation.apriltag.valid'][0]),tag_observation)
+                if preview and not preview.update(display):
                     break
                 if stop:
                     break
                 predict_start = time.perf_counter()
-                actions = policy.predict(rgb,current)
+                actions = policy.predict(rgb,current,tag_observation) if tag_detector else policy.predict(rgb,current)
                 inference_ms = (time.perf_counter()-predict_start)*1000
                 if stop:
                     break
@@ -385,6 +427,8 @@ def live(args, policy):
                 row = dict(elapsed_s=round(time.perf_counter()-started,3),execute=args.execute,
                     inference_ms=round(inference_ms,2),state=current.tolist(),
                     target=target.tolist(),applied=None if applied is None else applied.tolist())
+                if tag_observation is not None:
+                    row['apriltag'] = {k.rsplit('.',1)[-1]:v.tolist() for k,v in tag_observation.items()}
                 output.write(json.dumps(row)+"\n")
                 if tick-last_print >= 1:
                     log.info("infer %.1fms | state %s | predicted %s",inference_ms,

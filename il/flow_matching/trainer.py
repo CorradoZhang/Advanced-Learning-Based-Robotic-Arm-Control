@@ -39,6 +39,8 @@ class FlowMatchingTrainer:
                 device=data.device,
             ))
         self.dataset_train, self.dataset_val = datasets
+        if any(dataset.states.shape[1] != cfg.model.obs_dim for dataset in datasets):
+            raise ValueError('Dataset/model observation dimension mismatch')
         # Conversion puts disjoint episodes in distinct files before normalization.
         manifest = json.loads((Path(cfg.train_dataset_path).parent/"manifest.json").read_text())
         assert not set(manifest["train_episodes"]) & set(manifest["val_episodes"])
